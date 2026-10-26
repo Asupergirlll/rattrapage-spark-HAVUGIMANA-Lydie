@@ -1,8 +1,6 @@
-# ClimaCity Paris — Rendu de projet PySpark
+# ClimaCity Paris : Rendu de projet PySpark
 
-
-
-Lydie HAVUGIMANA
+**Lydie HAVUGIMANA** · Rattrapage du module Spark · Octobre 2026
 
 ---
 
@@ -34,7 +32,7 @@ Les notebooks fournis par l'enseignant faisaient référence à des données
 « 2022-2023 ». Le jeu de données réellement disponible dans le projet
 (`data/velib/raw/historique_stations.csv`, téléchargé depuis le dépôt
 `lovasoa/historique-velib-opendata`) couvre en réalité **novembre 2020 à avril
-2021**. Nous avons donc adapté chaque exercice concerné (jours fériés, partitions
+2021**. J'ai donc adapté chaque exercice concerné (jours fériés, partitions
 Parquet/Delta demandées par année/mois, splits train/test temporels) à la
 période réellement couverte, en le signalant explicitement dans les commentaires
 de chaque cellule concernée plutôt que de laisser des valeurs de l'énoncé qui
@@ -44,55 +42,55 @@ n'auraient renvoyé aucune ligne.
 
 ## Choix effectués par phase
 
-**Session 1 (RDD).** Le parsing des lignes CSV brutes est fait à la main avec le
-module `csv` plutôt qu'un simple `.split(",")`, pour gérer correctement les
+**Session 1 (RDD).** Je parse les lignes CSV brutes à la main avec le
+module `csv` plutôt qu'avec un simple `.split(",")`, pour gérer correctement les
 champs contenant des virgules (les coordonnées GPS sont entre guillemets).
-`reduceByKey` est systématiquement préféré à `groupByKey` pour l'agrégation par
+Je préfère systématiquement `reduceByKey` à `groupByKey` pour l'agrégation par
 station, afin d'illustrer la combinaison locale avant shuffle.
 
-**Session 2 (DataFrame).** Le nettoyage est écrit comme une chaîne unique de
-`.withColumn()` plutôt que des réaffectations successives de variables, pour
+**Session 2 (DataFrame).** J'écris le nettoyage comme une chaîne unique de
+`.withColumn()` plutôt que comme des réaffectations successives de variables, pour
 que le plan Catalyst optimise l'ensemble d'un coup. Les téléchargements
 (stations GBFS, historique Vélib', météo Open-Meteo) vérifient désormais
 l'existence du fichier cible avant d'appeler le réseau, pour ne pas retélécharger
 inutilement à chaque `Restart & Run All`.
 
-**Session 3 (Spark SQL / Delta).** Les questions métier sont écrites en SQL pur
+**Session 3 (Spark SQL / Delta).** J'écris les questions métier en SQL pur
 (`spark.sql(...)`) plutôt qu'en API DataFrame, conformément à l'objectif
 pédagogique de la section ; le fenêtrage analytique (`LAG`, `ROW_NUMBER`, moyenne
 mobile) est en revanche fait en API fonctionnelle pour comparer les deux styles.
-Le `MERGE INTO` Delta est démontré sur un batch de correction simulé, avec
+Je démontre le `MERGE INTO` Delta sur un batch de correction simulé, avec
 vérification par `time-travel` (comparaison de version) plutôt qu'une simple
 relecture.
 
 **Session 4 (Structured Streaming).** Le simulateur de flux (`scripts/simulateur_flux.py`)
 rejoue l'historique sous forme de fichiers JSON déposés dans un répertoire
 surveillé (`file source`), pour éviter d'avoir à monter une infrastructure Kafka
-pour l'exercice. La détection d'alertes de rupture de stock utilise `foreachBatch`
+pour l'exercice. Pour la détection d'alertes de rupture de stock, j'utilise `foreachBatch`
 avec un état Python conservé entre micro-batchs plutôt qu'une agrégation fenêtrée
 pure, car la logique (« combien de temps une station reste-t-elle vide avant de
 se reconstituer ») ne se laisse pas exprimer par une simple fenêtre temporelle.
 
-**Session 5 (MLlib).** Le split train/test est fait **chronologiquement**
-(la dernière année disponible sert de test) et non aléatoirement, pour éviter la
-fuite d'information propre aux séries temporelles. Le clustering K-Means est
-appliqué sur un vecteur de 24 features (le profil horaire moyen de chaque
-station) plutôt que sur les variables brutes, ce qui donne des clusters
-interprétables (« stations pendulaires », « stations stables »...). Le nombre de
-clusters (k=4) est choisi à l'œil sur la courbe du coude (méthode WSSSE), une
-approche qualitative jugée suffisante à ce stade du projet.
+**Session 5 (MLlib).** Je fais le split train/test **chronologiquement**
+(les derniers mois de la période servent de jeu de test) et non aléatoirement, pour éviter la
+fuite d'information propre aux séries temporelles. J'applique le clustering K-Means
+à un vecteur de 24 features (le profil horaire moyen de chaque
+station) plutôt qu'aux variables brutes, ce qui donne des clusters
+interprétables (« stations pendulaires », « stations stables »...). Je choisis le nombre de
+clusters (k=4) à l'œil sur la courbe du coude (méthode WSSSE), une
+approche qualitative que j'ai jugée suffisante à ce stade du projet.
 
 ---
 
 ## Transparence sur l'utilisation d'un assistant IA
 
-Conformément à la consigne de l'énoncé, nous indiquons explicitement avoir eu
+Conformément à la consigne de l'énoncé, j'indique explicitement avoir eu
 recours à un assistant IA (**Claude / Claude Code**, Anthropic) au cours de ce
 projet, en particulier pour :
 
 - **Déboguer l'environnement d'exécution** (Docker, kernels Jupyter, permissions
   de volumes, épuisement mémoire de la JVM Spark) — ces problèmes n'ont pas
-  d'impact sur le contenu académique du rendu mais nous ont coûté un temps
+  d'impact sur le contenu académique du rendu mais m'ont coûté un temps
   important ; l'assistant a permis de diagnostiquer chaque incident précisément
   (ex. lecture des logs du conteneur, inspection des process JVM, vérification
   des dates réellement couvertes par le jeu de données) plutôt que par
@@ -107,26 +105,26 @@ projet, en particulier pour :
   `code_arr`, absents du jeu de données réel ; un jeu de données Parquet
   « pré-préparé » jamais généré par aucune cellule).
 
-**Pourquoi nous jugeons ces solutions correctes.** Chaque proposition a été
-vérifiée par rapport aux données réelles du projet plutôt qu'acceptée telle
-quelle : la plage de dates réellement couverte par le CSV historique a été
-vérifiée directement (`head`/`tail` du fichier) avant d'adapter les exemples
-d'années/mois ; le schéma JSON attendu par le lecteur de flux Structured
-Streaming a été aligné sur ce que produit réellement `scripts/simulateur_flux.py`
-plutôt que sur le schéma supposé par l'énoncé d'origine ; les résultats de
-`.explain()`, `.printSchema()` et les comptages intermédiaires ont servi à
+**Pourquoi je juge ces solutions correctes.** J'ai vérifié chaque proposition par
+rapport aux données réelles du projet plutôt que de l'accepter telle
+quelle : j'ai vérifié directement la plage de dates réellement couverte par le CSV
+historique (`head`/`tail` du fichier) avant d'adapter les exemples
+d'années/mois ; j'ai aligné le schéma JSON attendu par le lecteur de flux Structured
+Streaming sur ce que produit réellement `scripts/simulateur_flux.py`
+plutôt que sur le schéma supposé par l'énoncé d'origine ; j'ai utilisé les résultats de
+`.explain()`, `.printSchema()` et les comptages intermédiaires pour
 confirmer que chaque étape produisait bien ce qui était attendu. Chaque cellule
 concernée porte un commentaire à la première personne expliquant ce qui a été
 changé et pourquoi (ex. *« J'ai remplacé station_id par nom_station : cette
-colonne n'existe pas dans notre schéma »*) — ces commentaires ont été rédigés
-avec l'assistant mais reflètent des vérifications que nous avons demandées et
+colonne n'existe pas dans mon schéma »*) — ces commentaires ont été rédigés
+avec l'assistant mais reflètent des vérifications que j'ai demandées et
 relues.
 
-**Ce qui reste de notre propre analyse.** Les choix de conception rapportés dans
+**Ce qui reste de ma propre analyse.** Les choix de conception rapportés dans
 la section précédente (pourquoi un split temporel, pourquoi 24 features horaires
 pour le clustering, pourquoi `foreachBatch` plutôt qu'une fenêtre pour les
-alertes) sont les nôtres ; l'assistant a implémenté ces choix une fois discutés,
-il ne les a pas imposés.
+alertes) sont les miens ; l'assistant a implémenté ces choix une fois discutés,
+il ne me les a pas imposés.
 
 ---
 
@@ -152,8 +150,8 @@ Contient JupyterLab, PySpark 3.5, Delta Lake 3.2 et MLflow 2.17.
 
 ```bash
 # 1. Cloner le dépôt
-# Décompresser l'archive du projet puis se placer dans le dossier
-cd Spark
+git clone https://github.com/Asupergirlll/rattrapage-spark-HAVUGIMANA-Lydie.git
+cd rattrapage-spark-HAVUGIMANA-Lydie
 
 # 2. Ajuster les ressources si nécessaire (fichier .env)
 #    DOCKER_MEMORY_LIMIT=10g / SPARK_DRIVER_MEMORY=7g pour un laptop 16 Go
@@ -177,12 +175,12 @@ docker compose ps   # attendre le statut "healthy" sur les deux services
 |---------|-----|-------------|
 | JupyterLab | http://localhost:8888/lab?token=climacity | Token : `climacity` |
 | Spark UI | http://localhost:4040 | Aucun (disponible après `getOrCreate()`) |
-| MLflow UI | http://localhost:5001 | Aucun |
+| MLflow UI | http://localhost:5000 | Aucun |
 
 ### Structure des répertoires
 
 ```
-Cyclo/
+rattrapage-spark-HAVUGIMANA-Lydie/
 ├── docker-compose.yml       # Orchestration des services (jupyter + mlflow)
 ├── Dockerfile               # Image JupyterLab + PySpark + Delta personnalisée
 ├── requirements.txt         # Paquets Python ajoutés à l'image de base
